@@ -1,0 +1,48 @@
+{
+  "name": "emdash-cloudflare-email",
+  "version": "0.1.0",
+  "description": "EmDash plugin: deliver system emails (magic link / invite / password reset) via Cloudflare Email Sending (Public Beta).",
+  "keywords": [
+    "emdash",
+    "emdash-plugin",
+    "cloudflare",
+    "cloudflare-workers",
+    "email",
+    "transactional-email"
+  ],
+  "license": "MIT",
+  "author": "Yushi Matsui <https://github.com/tmyuu>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tmyuu/emdash-cloudflare-email.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tmyuu/emdash-cloudflare-email/issues"
+  },
+  "homepage": "https://github.com/tmyuu/emdash-cloudflare-email#readme",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "emdash": ">=0.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250520.0",
+    "emdash": "^0.9.0",
+    "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
