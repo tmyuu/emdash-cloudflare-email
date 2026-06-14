@@ -1,110 +1,62 @@
 /**
  * emdash-cloudflare-email
  *
- * EmDash plugin that registers a Cloudflare Email Sending transport
- * for the exclusive `email:deliver` hook.
+ * EmDash CMS plugin (standard format) that delivers system email
+ * (magic link / invite / password reset) through the native Cloudflare
+ * Email Sending Workers binding — no API token, no SMTP, no external SaaS.
  *
- * Usage (in your Astro entrypoint, e.g. src/plugins/email-cf.ts):
+ * Targets the EmDash 0.19 plugin model:
  *
- *   import { createCfEmailPlugin } from 'emdash-cloudflare-email';
- *   export default createCfEmailPlugin({ from: 'noreply@example.com' });
+ *   - `src/index.ts`        → this descriptor factory (`PluginDescriptor`)
+ *   - `src/sandbox-entry.ts`→ `definePlugin({ hooks, routes })` (the runtime)
  *
- * Then in astro.config.mjs:
+ * Register it in `astro.config.mjs`:
  *
- *   emdash({
- *     plugins: [{
- *       id: 'cf-email-sending',
- *       version: '0.1.0',
- *       format: 'standard',
- *       entrypoint: new URL('./src/plugins/email-cf.ts', import.meta.url).pathname,
- *       capabilities: ['hooks.email-transport:register'],
- *     }],
- *   })
+ *   import emdash from 'emdash/astro';
+ *   import cloudflareEmail from 'emdash-cloudflare-email';
  *
- * Required wrangler config:
+ *   export default defineConfig({
+ *     integrations: [
+ *       emdash({
+ *         // Must be `plugins:` (in-process), NOT `sandboxed:` — the plugin
+ *         // needs the host Worker's `send_email` binding, which is not
+ *         // exposed inside an isolate.
+ *         plugins: [cloudflareEmail()],
+ *       }),
+ *     ],
+ *   });
+ *
+ * Required wrangler config (host Worker):
  *
  *   "send_email": [{ "name": "EMAIL" }]
  *
- * The sender domain must be onboarded to Cloudflare Email Service:
- *   Dashboard → Compute → Email Service → Email Sending → Onboard Domain.
+ * The From domain must be onboarded to Cloudflare Email Sending
+ * (Dashboard → Compute → Email Service → Email Sending → Onboard Domain,
+ * or `wrangler email sending enable yourdomain.com`).
+ *
+ * Configuration (From address, binding name) is done at runtime from the
+ * plugin's admin settings page — EmDash 0.19 standard-format plugins do not
+ * receive descriptor `options` inside the sandbox entrypoint.
  */
 
-import { definePlugin } from 'emdash';
-import { env } from 'cloudflare:workers';
-
-export interface CfEmailPluginOptions {
-  /**
-   * Default `From` address for outgoing emails.
-   * EmDash's EmailMessage shape does not carry a `from` field, so the
-   * plugin must inject one. Use a verified address on a domain that
-   * has been onboarded to Cloudflare Email Sending.
-   */
-  from: string;
-
-  /**
-   * Override for the binding name. Defaults to `EMAIL`.
-   * Useful if your wrangler config uses a different binding name.
-   */
-  bindingName?: string;
-}
-
-interface SendEmailBinding {
-  send: (msg: {
-    to: string | string[];
-    from: string;
-    subject: string;
-    html?: string;
-    text?: string;
-    replyTo?: string;
-  }) => Promise<void>;
-}
-
-type CloudflareEnvWithEmail = Record<string, unknown>;
+import type { PluginDescriptor } from 'emdash';
 
 /**
- * Create a configured EmDash plugin that delivers emails through
- * Cloudflare Email Sending.
+ * Build the EmDash plugin descriptor for the Cloudflare Email Sending
+ * transport. Takes no arguments — From address and binding name are
+ * configured from the admin settings page (see sandbox-entry).
  */
-export function createCfEmailPlugin(options: CfEmailPluginOptions) {
-  if (!options.from) {
-    throw new Error(
-      'emdash-cloudflare-email: `from` option is required. Set it to a verified sender address (e.g., "noreply@example.com").',
-    );
-  }
-  const bindingName = options.bindingName ?? 'EMAIL';
-
-  return definePlugin({
-    hooks: {
-      'email:deliver': {
-        exclusive: true,
-        handler: async (event, ctx) => {
-          const { message, source } = event;
-          const cfEnv = env as CloudflareEnvWithEmail;
-          const binding = cfEnv[bindingName] as SendEmailBinding | undefined;
-
-          if (!binding || typeof binding.send !== 'function') {
-            ctx.log.error(
-              `Cloudflare Email binding "${bindingName}" is not available on env. Check wrangler.jsonc send_email.`,
-              { source },
-            );
-            throw new Error(`EMAIL binding "${bindingName}" missing`);
-          }
-
-          ctx.log.info('Delivering email via Cloudflare Email Sending', {
-            to: message.to,
-            subject: message.subject,
-            source,
-          });
-
-          await binding.send({
-            to: message.to,
-            from: options.from,
-            subject: message.subject,
-            html: message.html,
-            text: message.text,
-          });
-        },
-      },
-    },
-  });
+export function cloudflareEmail(): PluginDescriptor {
+  return {
+    id: 'cf-email-sending',
+    version: '0.2.0',
+    format: 'standard',
+    entrypoint: 'emdash-cloudflare-email/sandbox',
+    capabilities: ['email:provide'],
+    adminPages: [
+      { path: '/settings', label: 'Cloudflare Email', icon: 'email' },
+    ],
+  };
 }
+
+export default cloudflareEmail;
