@@ -24,6 +24,7 @@
     "build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
     "dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
+    "prepare": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
