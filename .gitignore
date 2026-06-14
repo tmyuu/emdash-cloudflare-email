@@ -3,5 +3,9 @@ node_modules/
 *.log
 .env
 .env.local
-dist/
 *.tsbuildinfo
+
+# NOTE: dist/ is intentionally committed so the package works when installed
+# straight from GitHub (`pnpm add github:tmyuu/emdash-cloudflare-email`).
+# A `prepare` script rebuilds it on git installs where lifecycle scripts run;
+# the committed copy is the fallback for environments that block them.
