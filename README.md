@@ -71,7 +71,8 @@ no manual `_plugin_state` / `options` SQL to run anymore (that was required on
 Deploy, then open the EmDash admin → **Cloudflare Email** settings page:
 
 - **Display Name** — optional. Shown as the sender name in the recipient's
-  inbox (e.g. `Acme App`).
+  inbox (e.g. `Acme App`). When left blank, the EmDash site name
+  (`ctx.site.name`) is used.
 - **From Address** — required. The sender mailbox, e.g. `noreply@yourdomain.com`.
   Its domain must be onboarded to Cloudflare Email Sending.
 - **Reply-To** — optional. Where replies go (e.g. `support@yourdomain.com`).

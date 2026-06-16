@@ -105,10 +105,10 @@ async function resolveFrom(ctx: PluginContext): Promise<FromAddress> {
   }
   const parsed = parseFrom(fromRaw);
   if (!parsed) throw new Error('Invalid From address in plugin settings');
-  const name = (await ctx.kv.get<string>(KV_DISPLAY_NAME))?.trim();
-  // An explicit Display Name field wins over any name embedded in the From
-  // value; fall back to the embedded name if present.
-  const displayName = name || parsed.name;
+  const explicit = (await ctx.kv.get<string>(KV_DISPLAY_NAME))?.trim();
+  // Display-name precedence: explicit setting → name embedded in the From
+  // value → EmDash's site name (`ctx.site.name`) as a sensible default.
+  const displayName = explicit || parsed.name || ctx.site?.name?.trim();
   return displayName ? { email: parsed.email, name: displayName } : { email: parsed.email };
 }
 
@@ -127,6 +127,7 @@ async function buildSettingsPage(ctx: PluginContext) {
   const displayName = (await ctx.kv.get<string>(KV_DISPLAY_NAME)) ?? '';
   const replyTo = (await ctx.kv.get<string>(KV_REPLY_TO)) ?? '';
   const bindingName = (await ctx.kv.get<string>(KV_BINDING)) ?? '';
+  const siteName = ctx.site?.name?.trim();
   return {
     blocks: [
       {
@@ -141,7 +142,9 @@ async function buildSettingsPage(ctx: PluginContext) {
             type: 'text_input',
             action_id: 'displayName',
             label: 'Display Name',
-            placeholder: 'Your App',
+            placeholder: siteName
+              ? `${siteName} (site name, used when blank)`
+              : 'Your App',
             initial_value: displayName,
             required: false,
           },

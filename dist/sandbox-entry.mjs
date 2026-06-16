@@ -39,7 +39,7 @@ async function resolveFrom(ctx) {
 	if (!fromRaw) throw new Error("Cloudflare Email plugin not configured. Set the From address in plugin settings.");
 	const parsed = parseFrom(fromRaw);
 	if (!parsed) throw new Error("Invalid From address in plugin settings");
-	const displayName = (await ctx.kv.get(KV_DISPLAY_NAME))?.trim() || parsed.name;
+	const displayName = (await ctx.kv.get(KV_DISPLAY_NAME))?.trim() || parsed.name || ctx.site?.name?.trim();
 	return displayName ? {
 		email: parsed.email,
 		name: displayName
@@ -55,6 +55,7 @@ async function buildSettingsPage(ctx) {
 	const displayName = await ctx.kv.get(KV_DISPLAY_NAME) ?? "";
 	const replyTo = await ctx.kv.get(KV_REPLY_TO) ?? "";
 	const bindingName = await ctx.kv.get(KV_BINDING) ?? "";
+	const siteName = ctx.site?.name?.trim();
 	return { blocks: [
 		{
 			type: "section",
@@ -71,7 +72,7 @@ async function buildSettingsPage(ctx) {
 					type: "text_input",
 					action_id: "displayName",
 					label: "Display Name",
-					placeholder: "Your App",
+					placeholder: siteName ? `${siteName} (site name, used when blank)` : "Your App",
 					initial_value: displayName,
 					required: false
 				},
