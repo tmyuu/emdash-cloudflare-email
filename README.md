@@ -66,13 +66,16 @@ That's it for code. EmDash discovers the plugin from the descriptor — there's
 no manual `_plugin_state` / `options` SQL to run anymore (that was required on
 0.9; it is gone on 0.19).
 
-### 3. Configure the From address in the admin UI
+### 3. Configure the sender in the admin UI
 
 Deploy, then open the EmDash admin → **Cloudflare Email** settings page:
 
-- **From Address** — `Your App <noreply@yourdomain.com>` (or just
-  `noreply@yourdomain.com`). Must be on a domain onboarded to Cloudflare Email
-  Sending.
+- **Display Name** — optional. Shown as the sender name in the recipient's
+  inbox (e.g. `Acme App`).
+- **From Address** — required. The sender mailbox, e.g. `noreply@yourdomain.com`.
+  Its domain must be onboarded to Cloudflare Email Sending.
+- **Reply-To** — optional. Where replies go (e.g. `support@yourdomain.com`).
+  Applied to every delivered message when set.
 - **Binding Name** — optional; defaults to `EMAIL`. Set this only if your
   wrangler `send_email` binding uses a different name.
 
