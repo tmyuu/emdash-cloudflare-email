@@ -2,6 +2,8 @@ import { env } from "cloudflare:workers";
 //#region src/sandbox-entry.ts
 /** KV keys for runtime configuration (set via the admin settings page). */
 const KV_FROM = "settings:fromAddress";
+const KV_DISPLAY_NAME = "settings:displayName";
+const KV_REPLY_TO = "settings:replyTo";
 const KV_BINDING = "settings:bindingName";
 const DEFAULT_BINDING = "EMAIL";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,8 +29,31 @@ async function getBindingName(ctx) {
 	const name = await ctx.kv.get(KV_BINDING);
 	return name && name.trim() ? name.trim() : DEFAULT_BINDING;
 }
+/**
+* Resolve the configured sender into a Cloudflare `from` value. Combines the
+* From email with the optional display name. Throws if the From address is
+* missing or invalid (so callers surface a clear setup error).
+*/
+async function resolveFrom(ctx) {
+	const fromRaw = await ctx.kv.get(KV_FROM);
+	if (!fromRaw) throw new Error("Cloudflare Email plugin not configured. Set the From address in plugin settings.");
+	const parsed = parseFrom(fromRaw);
+	if (!parsed) throw new Error("Invalid From address in plugin settings");
+	const displayName = (await ctx.kv.get(KV_DISPLAY_NAME))?.trim() || parsed.name;
+	return displayName ? {
+		email: parsed.email,
+		name: displayName
+	} : { email: parsed.email };
+}
+/** Optional Reply-To address, validated. Returns undefined when unset. */
+async function getReplyTo(ctx) {
+	const raw = (await ctx.kv.get(KV_REPLY_TO))?.trim();
+	return raw && isValidEmail(raw) ? raw : void 0;
+}
 async function buildSettingsPage(ctx) {
 	const fromAddress = await ctx.kv.get(KV_FROM) ?? "";
+	const displayName = await ctx.kv.get(KV_DISPLAY_NAME) ?? "";
+	const replyTo = await ctx.kv.get(KV_REPLY_TO) ?? "";
 	const bindingName = await ctx.kv.get(KV_BINDING) ?? "";
 	return { blocks: [
 		{
@@ -41,21 +66,40 @@ async function buildSettingsPage(ctx) {
 				label: "Save Settings",
 				action_id: "save_settings"
 			},
-			fields: [{
-				type: "text_input",
-				action_id: "fromAddress",
-				label: "From Address",
-				placeholder: "Your App <noreply@yourdomain.com>",
-				initial_value: fromAddress,
-				required: true
-			}, {
-				type: "text_input",
-				action_id: "bindingName",
-				label: "Binding Name",
-				placeholder: DEFAULT_BINDING,
-				initial_value: bindingName,
-				required: false
-			}]
+			fields: [
+				{
+					type: "text_input",
+					action_id: "displayName",
+					label: "Display Name",
+					placeholder: "Your App",
+					initial_value: displayName,
+					required: false
+				},
+				{
+					type: "text_input",
+					action_id: "fromAddress",
+					label: "From Address",
+					placeholder: "noreply@yourdomain.com",
+					initial_value: fromAddress,
+					required: true
+				},
+				{
+					type: "text_input",
+					action_id: "replyTo",
+					label: "Reply-To",
+					placeholder: "support@yourdomain.com",
+					initial_value: replyTo,
+					required: false
+				},
+				{
+					type: "text_input",
+					action_id: "bindingName",
+					label: "Binding Name",
+					placeholder: DEFAULT_BINDING,
+					initial_value: bindingName,
+					required: false
+				}
+			]
 		},
 		{
 			type: "section",
@@ -80,14 +124,32 @@ async function buildSettingsPage(ctx) {
 async function saveSettings(ctx, values) {
 	try {
 		if (typeof values.fromAddress === "string") {
-			if (!parseFrom(values.fromAddress)) return {
+			const parsed = parseFrom(values.fromAddress);
+			if (!parsed) return {
 				...await buildSettingsPage(ctx),
 				toast: {
-					message: "From Address must be \"name@domain\" or \"Display <name@domain>\"",
+					message: "From Address must be a valid email (e.g. noreply@yourdomain.com)",
 					type: "error"
 				}
 			};
-			await ctx.kv.set(KV_FROM, values.fromAddress);
+			await ctx.kv.set(KV_FROM, parsed.email);
+		}
+		if (typeof values.displayName === "string") {
+			const trimmed = values.displayName.trim();
+			if (trimmed) await ctx.kv.set(KV_DISPLAY_NAME, trimmed);
+			else await ctx.kv.delete(KV_DISPLAY_NAME);
+		}
+		if (typeof values.replyTo === "string") {
+			const trimmed = values.replyTo.trim();
+			if (trimmed && !isValidEmail(trimmed)) return {
+				...await buildSettingsPage(ctx),
+				toast: {
+					message: "Reply-To must be a valid email or left empty",
+					type: "error"
+				}
+			};
+			if (trimmed) await ctx.kv.set(KV_REPLY_TO, trimmed);
+			else await ctx.kv.delete(KV_REPLY_TO);
 		}
 		if (typeof values.bindingName === "string") {
 			const trimmed = values.bindingName.trim();
@@ -130,17 +192,12 @@ async function sendTestEmail(ctx, values) {
 				type: "error"
 			}
 		};
-		const from = parseFrom(fromRaw);
-		if (!from) return {
-			...await buildSettingsPage(ctx),
-			toast: {
-				message: "Invalid From address — re-save settings",
-				type: "error"
-			}
-		};
+		const from = await resolveFrom(ctx);
+		const replyTo = await getReplyTo(ctx);
 		await getBinding(await getBindingName(ctx)).send({
 			to: recipient,
 			from,
+			...replyTo && { replyTo },
 			subject: "EmDash Cloudflare Email test",
 			text: "Hello from your EmDash Cloudflare Email plugin. Delivery via the Workers binding is working.",
 			html: "<p>Hello from your EmDash Cloudflare Email plugin. Delivery via the Workers binding is working.</p>"
@@ -163,14 +220,13 @@ async function sendTestEmail(ctx, values) {
 	}
 }
 const deliverHandler = async (event, ctx) => {
-	const fromRaw = await ctx.kv.get(KV_FROM);
-	if (!fromRaw) throw new Error("Cloudflare Email plugin not configured. Set the From address in plugin settings.");
-	const from = parseFrom(fromRaw);
-	if (!from) throw new Error("Invalid From address in plugin settings");
+	const from = await resolveFrom(ctx);
+	const replyTo = await getReplyTo(ctx);
 	const { message } = event;
 	await getBinding(await getBindingName(ctx)).send({
 		to: message.to,
 		from,
+		...replyTo && { replyTo },
 		subject: message.subject,
 		html: message.html,
 		text: message.text
