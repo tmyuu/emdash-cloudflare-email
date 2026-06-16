@@ -70,6 +70,9 @@ no manual `_plugin_state` / `options` SQL to run anymore (that was required on
 
 Deploy, then open the EmDash admin → **Cloudflare Email** settings page:
 
+- **Language** — admin UI language for this page. `English` (default) or
+  `日本語`. Only affects the settings page; it does not localize the emails
+  themselves (EmDash composes those).
 - **Display Name** — optional. Shown as the sender name in the recipient's
   inbox (e.g. `Acme App`). When left blank, the EmDash site name
   (`ctx.site.name`) is used.

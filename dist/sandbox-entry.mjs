@@ -1,11 +1,71 @@
 import { env } from "cloudflare:workers";
+//#endregion
 //#region src/sandbox-entry.ts
+const CATALOGS = {
+	en: {
+		intro: "Send transactional email through the Cloudflare Email Sending Workers binding. No API token is required — authentication happens via the binding. The From domain must be onboarded to Cloudflare Email Sending (`wrangler email sending enable yourdomain.com` or the dashboard).",
+		languageLabel: "Language",
+		langEnglish: "English",
+		langJapanese: "日本語",
+		displayNameLabel: "Display Name",
+		displayNameSiteHint: "(site name, used when blank)",
+		displayNameFallbackPlaceholder: "Your App",
+		fromLabel: "From Address",
+		replyToLabel: "Reply-To",
+		bindingLabel: "Binding Name",
+		saveButton: "Save Settings",
+		testIntro: "Send a test email through the binding to verify your setup.",
+		testRecipientLabel: "Test Recipient",
+		testButton: "Send Test Email",
+		toastSaved: "Settings saved",
+		toastSaveFailed: "Failed to save settings",
+		toastFromInvalid: "From Address must be a valid email (e.g. noreply@yourdomain.com)",
+		toastReplyToInvalid: "Reply-To must be a valid email or left empty",
+		toastTestNoFrom: "Save the From address before sending a test",
+		toastTestInvalidRecipient: "Enter a valid recipient",
+		toastTestSent: "Test email sent",
+		toastErrorPrefix: "Error: "
+	},
+	ja: {
+		intro: "Cloudflare Email Sending の Workers バインディング経由でトランザクションメールを送信します。バインディングで認証されるため API トークンは不要です。差出人ドメインは Cloudflare Email Sending にオンボード済みである必要があります（`wrangler email sending enable yourdomain.com` またはダッシュボード）。",
+		languageLabel: "言語",
+		langEnglish: "English",
+		langJapanese: "日本語",
+		displayNameLabel: "表示名",
+		displayNameSiteHint: "（サイト名・空欄時に使用）",
+		displayNameFallbackPlaceholder: "アプリ名",
+		fromLabel: "差出人アドレス",
+		replyToLabel: "返信先 (Reply-To)",
+		bindingLabel: "バインディング名",
+		saveButton: "設定を保存",
+		testIntro: "設定を確認するため、バインディング経由でテストメールを送信します。",
+		testRecipientLabel: "テスト送信先",
+		testButton: "テストメールを送信",
+		toastSaved: "設定を保存しました",
+		toastSaveFailed: "設定の保存に失敗しました",
+		toastFromInvalid: "差出人アドレスは有効なメールアドレスを入力してください（例: noreply@yourdomain.com）",
+		toastReplyToInvalid: "返信先は有効なメールアドレスか、空欄にしてください",
+		toastTestNoFrom: "テスト送信の前に差出人アドレスを保存してください",
+		toastTestInvalidRecipient: "有効な送信先を入力してください",
+		toastTestSent: "テストメールを送信しました",
+		toastErrorPrefix: "エラー: "
+	}
+};
 /** KV keys for runtime configuration (set via the admin settings page). */
 const KV_FROM = "settings:fromAddress";
 const KV_DISPLAY_NAME = "settings:displayName";
 const KV_REPLY_TO = "settings:replyTo";
 const KV_BINDING = "settings:bindingName";
+const KV_LOCALE = "settings:locale";
 const DEFAULT_BINDING = "EMAIL";
+const DEFAULT_LOCALE = "en";
+async function getLocale(ctx) {
+	return await ctx.kv.get(KV_LOCALE) === "ja" ? "ja" : DEFAULT_LOCALE;
+}
+/** Resolve the admin UI message catalog for the configured locale. */
+async function getMessages(ctx) {
+	return CATALOGS[await getLocale(ctx)];
+}
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isValidEmail = (v) => typeof v === "string" && EMAIL_RE.test(v);
 /** Parse `"name@domain"` or `"Display Name <name@domain>"`. */
@@ -55,31 +115,46 @@ async function buildSettingsPage(ctx) {
 	const displayName = await ctx.kv.get(KV_DISPLAY_NAME) ?? "";
 	const replyTo = await ctx.kv.get(KV_REPLY_TO) ?? "";
 	const bindingName = await ctx.kv.get(KV_BINDING) ?? "";
+	const locale = await getLocale(ctx);
+	const m = CATALOGS[locale];
 	const siteName = ctx.site?.name?.trim();
 	return { blocks: [
 		{
 			type: "section",
-			text: "Send transactional email through the Cloudflare Email Sending Workers binding. No API token is required — authentication happens via the binding. The From domain must be onboarded to Cloudflare Email Sending (`wrangler email sending enable yourdomain.com` or the dashboard)."
+			text: m.intro
 		},
 		{
 			type: "form",
 			submit: {
-				label: "Save Settings",
+				label: m.saveButton,
 				action_id: "save_settings"
 			},
 			fields: [
 				{
+					type: "select",
+					action_id: "locale",
+					label: m.languageLabel,
+					options: [{
+						label: m.langEnglish,
+						value: "en"
+					}, {
+						label: m.langJapanese,
+						value: "ja"
+					}],
+					initial_value: locale
+				},
+				{
 					type: "text_input",
 					action_id: "displayName",
-					label: "Display Name",
-					placeholder: siteName ? `${siteName} (site name, used when blank)` : "Your App",
+					label: m.displayNameLabel,
+					placeholder: siteName ? `${siteName} ${m.displayNameSiteHint}` : m.displayNameFallbackPlaceholder,
 					initial_value: displayName,
 					required: false
 				},
 				{
 					type: "text_input",
 					action_id: "fromAddress",
-					label: "From Address",
+					label: m.fromLabel,
 					placeholder: "noreply@yourdomain.com",
 					initial_value: fromAddress,
 					required: true
@@ -87,7 +162,7 @@ async function buildSettingsPage(ctx) {
 				{
 					type: "text_input",
 					action_id: "replyTo",
-					label: "Reply-To",
+					label: m.replyToLabel,
 					placeholder: "support@yourdomain.com",
 					initial_value: replyTo,
 					required: false
@@ -95,7 +170,7 @@ async function buildSettingsPage(ctx) {
 				{
 					type: "text_input",
 					action_id: "bindingName",
-					label: "Binding Name",
+					label: m.bindingLabel,
 					placeholder: DEFAULT_BINDING,
 					initial_value: bindingName,
 					required: false
@@ -104,18 +179,18 @@ async function buildSettingsPage(ctx) {
 		},
 		{
 			type: "section",
-			text: "Send a test email through the binding to verify your setup."
+			text: m.testIntro
 		},
 		{
 			type: "form",
 			submit: {
-				label: "Send Test Email",
+				label: m.testButton,
 				action_id: "test_email"
 			},
 			fields: [{
 				type: "text_input",
 				action_id: "testEmailAddress",
-				label: "Test Recipient",
+				label: m.testRecipientLabel,
 				placeholder: "you@example.com",
 				initial_value: ""
 			}]
@@ -124,12 +199,14 @@ async function buildSettingsPage(ctx) {
 }
 async function saveSettings(ctx, values) {
 	try {
+		if (values.locale === "en" || values.locale === "ja") await ctx.kv.set(KV_LOCALE, values.locale);
+		const m = await getMessages(ctx);
 		if (typeof values.fromAddress === "string") {
 			const parsed = parseFrom(values.fromAddress);
 			if (!parsed) return {
 				...await buildSettingsPage(ctx),
 				toast: {
-					message: "From Address must be a valid email (e.g. noreply@yourdomain.com)",
+					message: m.toastFromInvalid,
 					type: "error"
 				}
 			};
@@ -145,7 +222,7 @@ async function saveSettings(ctx, values) {
 			if (trimmed && !isValidEmail(trimmed)) return {
 				...await buildSettingsPage(ctx),
 				toast: {
-					message: "Reply-To must be a valid email or left empty",
+					message: m.toastReplyToInvalid,
 					type: "error"
 				}
 			};
@@ -160,7 +237,7 @@ async function saveSettings(ctx, values) {
 		return {
 			...await buildSettingsPage(ctx),
 			toast: {
-				message: "Settings saved",
+				message: m.toastSaved,
 				type: "success"
 			}
 		};
@@ -169,27 +246,28 @@ async function saveSettings(ctx, values) {
 		return {
 			...await buildSettingsPage(ctx),
 			toast: {
-				message: "Failed to save settings",
+				message: (await getMessages(ctx)).toastSaveFailed,
 				type: "error"
 			}
 		};
 	}
 }
 async function sendTestEmail(ctx, values) {
+	const m = await getMessages(ctx);
 	try {
 		const fromRaw = await ctx.kv.get(KV_FROM);
 		const recipient = values.testEmailAddress;
 		if (!fromRaw) return {
 			...await buildSettingsPage(ctx),
 			toast: {
-				message: "Save the From address before sending a test",
+				message: m.toastTestNoFrom,
 				type: "error"
 			}
 		};
 		if (!isValidEmail(recipient)) return {
 			...await buildSettingsPage(ctx),
 			toast: {
-				message: "Enter a valid recipient",
+				message: m.toastTestInvalidRecipient,
 				type: "error"
 			}
 		};
@@ -206,7 +284,7 @@ async function sendTestEmail(ctx, values) {
 		return {
 			...await buildSettingsPage(ctx),
 			toast: {
-				message: "Test email sent",
+				message: m.toastTestSent,
 				type: "success"
 			}
 		};
@@ -214,7 +292,7 @@ async function sendTestEmail(ctx, values) {
 		return {
 			...await buildSettingsPage(ctx),
 			toast: {
-				message: `Error: ${err.message}`,
+				message: `${m.toastErrorPrefix}${err.message}`,
 				type: "error"
 			}
 		};

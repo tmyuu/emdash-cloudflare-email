@@ -12,6 +12,16 @@
 
 import type { PluginContext, SandboxedPlugin } from 'emdash/plugin';
 import { env as cfEnv } from 'cloudflare:workers';
+import en from './locales/en.json';
+import ja from './locales/ja.json';
+
+/**
+ * Admin UI locale. Source code stays English-only — all translated strings
+ * live in the JSON catalogs under `./locales`, keyed identically.
+ */
+type Locale = 'en' | 'ja';
+type Messages = Record<keyof typeof en, string>;
+const CATALOGS: Record<Locale, Messages> = { en, ja };
 
 /**
  * Mirror of EmDash's internal `EmailMessage` shape. EmDash 0.19 does not
@@ -36,7 +46,18 @@ const KV_FROM = 'settings:fromAddress';
 const KV_DISPLAY_NAME = 'settings:displayName';
 const KV_REPLY_TO = 'settings:replyTo';
 const KV_BINDING = 'settings:bindingName';
+const KV_LOCALE = 'settings:locale';
 const DEFAULT_BINDING = 'EMAIL';
+const DEFAULT_LOCALE: Locale = 'en';
+
+async function getLocale(ctx: PluginContext): Promise<Locale> {
+  return (await ctx.kv.get<string>(KV_LOCALE)) === 'ja' ? 'ja' : DEFAULT_LOCALE;
+}
+
+/** Resolve the admin UI message catalog for the configured locale. */
+async function getMessages(ctx: PluginContext): Promise<Messages> {
+  return CATALOGS[await getLocale(ctx)];
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isValidEmail = (v: unknown): v is string =>
@@ -127,31 +148,43 @@ async function buildSettingsPage(ctx: PluginContext) {
   const displayName = (await ctx.kv.get<string>(KV_DISPLAY_NAME)) ?? '';
   const replyTo = (await ctx.kv.get<string>(KV_REPLY_TO)) ?? '';
   const bindingName = (await ctx.kv.get<string>(KV_BINDING)) ?? '';
+  const locale = await getLocale(ctx);
+  const m = CATALOGS[locale];
   const siteName = ctx.site?.name?.trim();
   return {
     blocks: [
       {
         type: 'section',
-        text: 'Send transactional email through the Cloudflare Email Sending Workers binding. No API token is required — authentication happens via the binding. The From domain must be onboarded to Cloudflare Email Sending (`wrangler email sending enable yourdomain.com` or the dashboard).',
+        text: m.intro,
       },
       {
         type: 'form',
-        submit: { label: 'Save Settings', action_id: 'save_settings' },
+        submit: { label: m.saveButton, action_id: 'save_settings' },
         fields: [
+          {
+            type: 'select',
+            action_id: 'locale',
+            label: m.languageLabel,
+            options: [
+              { label: m.langEnglish, value: 'en' },
+              { label: m.langJapanese, value: 'ja' },
+            ],
+            initial_value: locale,
+          },
           {
             type: 'text_input',
             action_id: 'displayName',
-            label: 'Display Name',
+            label: m.displayNameLabel,
             placeholder: siteName
-              ? `${siteName} (site name, used when blank)`
-              : 'Your App',
+              ? `${siteName} ${m.displayNameSiteHint}`
+              : m.displayNameFallbackPlaceholder,
             initial_value: displayName,
             required: false,
           },
           {
             type: 'text_input',
             action_id: 'fromAddress',
-            label: 'From Address',
+            label: m.fromLabel,
             placeholder: 'noreply@yourdomain.com',
             initial_value: fromAddress,
             required: true,
@@ -159,7 +192,7 @@ async function buildSettingsPage(ctx: PluginContext) {
           {
             type: 'text_input',
             action_id: 'replyTo',
-            label: 'Reply-To',
+            label: m.replyToLabel,
             placeholder: 'support@yourdomain.com',
             initial_value: replyTo,
             required: false,
@@ -167,7 +200,7 @@ async function buildSettingsPage(ctx: PluginContext) {
           {
             type: 'text_input',
             action_id: 'bindingName',
-            label: 'Binding Name',
+            label: m.bindingLabel,
             placeholder: DEFAULT_BINDING,
             initial_value: bindingName,
             required: false,
@@ -176,16 +209,16 @@ async function buildSettingsPage(ctx: PluginContext) {
       },
       {
         type: 'section',
-        text: 'Send a test email through the binding to verify your setup.',
+        text: m.testIntro,
       },
       {
         type: 'form',
-        submit: { label: 'Send Test Email', action_id: 'test_email' },
+        submit: { label: m.testButton, action_id: 'test_email' },
         fields: [
           {
             type: 'text_input',
             action_id: 'testEmailAddress',
-            label: 'Test Recipient',
+            label: m.testRecipientLabel,
             placeholder: 'you@example.com',
             initial_value: '',
           },
@@ -200,15 +233,17 @@ async function saveSettings(
   values: Record<string, unknown>,
 ) {
   try {
+    // Persist the locale first so the returned page and toasts reflect it.
+    if (values.locale === 'en' || values.locale === 'ja') {
+      await ctx.kv.set(KV_LOCALE, values.locale);
+    }
+    const m = await getMessages(ctx);
     if (typeof values.fromAddress === 'string') {
       const parsed = parseFrom(values.fromAddress);
       if (!parsed) {
         return {
           ...(await buildSettingsPage(ctx)),
-          toast: {
-            message: 'From Address must be a valid email (e.g. noreply@yourdomain.com)',
-            type: 'error',
-          },
+          toast: { message: m.toastFromInvalid, type: 'error' },
         };
       }
       // Store the bare email; the display name lives in its own field.
@@ -224,10 +259,7 @@ async function saveSettings(
       if (trimmed && !isValidEmail(trimmed)) {
         return {
           ...(await buildSettingsPage(ctx)),
-          toast: {
-            message: 'Reply-To must be a valid email or left empty',
-            type: 'error',
-          },
+          toast: { message: m.toastReplyToInvalid, type: 'error' },
         };
       }
       if (trimmed) await ctx.kv.set(KV_REPLY_TO, trimmed);
@@ -241,13 +273,13 @@ async function saveSettings(
     }
     return {
       ...(await buildSettingsPage(ctx)),
-      toast: { message: 'Settings saved', type: 'success' },
+      toast: { message: m.toastSaved, type: 'success' },
     };
   } catch (err) {
     ctx.log.error('Failed to save Cloudflare Email settings', err as Error);
     return {
       ...(await buildSettingsPage(ctx)),
-      toast: { message: 'Failed to save settings', type: 'error' },
+      toast: { message: (await getMessages(ctx)).toastSaveFailed, type: 'error' },
     };
   }
 }
@@ -256,22 +288,20 @@ async function sendTestEmail(
   ctx: PluginContext,
   values: Record<string, unknown>,
 ) {
+  const m = await getMessages(ctx);
   try {
     const fromRaw = await ctx.kv.get<string>(KV_FROM);
     const recipient = values.testEmailAddress as string | undefined;
     if (!fromRaw) {
       return {
         ...(await buildSettingsPage(ctx)),
-        toast: {
-          message: 'Save the From address before sending a test',
-          type: 'error',
-        },
+        toast: { message: m.toastTestNoFrom, type: 'error' },
       };
     }
     if (!isValidEmail(recipient)) {
       return {
         ...(await buildSettingsPage(ctx)),
-        toast: { message: 'Enter a valid recipient', type: 'error' },
+        toast: { message: m.toastTestInvalidRecipient, type: 'error' },
       };
     }
     const from = await resolveFrom(ctx);
@@ -287,12 +317,15 @@ async function sendTestEmail(
     });
     return {
       ...(await buildSettingsPage(ctx)),
-      toast: { message: 'Test email sent', type: 'success' },
+      toast: { message: m.toastTestSent, type: 'success' },
     };
   } catch (err) {
     return {
       ...(await buildSettingsPage(ctx)),
-      toast: { message: `Error: ${(err as Error).message}`, type: 'error' },
+      toast: {
+        message: `${m.toastErrorPrefix}${(err as Error).message}`,
+        type: 'error',
+      },
     };
   }
 }
