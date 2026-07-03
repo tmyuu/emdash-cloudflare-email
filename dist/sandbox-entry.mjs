@@ -324,7 +324,7 @@ const adminHandler = async (routeCtx, ctx) => {
 };
 /**
 * Standard/sandbox-format entrypoint: a bare `{ hooks, routes }` object
-* annotated with `satisfies SandboxedPlugin` — EmDash 0.19 standard plugins
+* annotated with `satisfies SandboxedPlugin` — EmDash standard plugins
 * do NOT call `definePlugin` (that is the native-format API).
 */
 var sandbox_entry_default = {
