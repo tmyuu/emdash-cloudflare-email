@@ -8,13 +8,13 @@ It registers the exclusive `email:deliver` transport on EmDash's email
 pipeline, so any time EmDash sends an email it goes through `env.EMAIL.send()`
 on your Cloudflare Worker — **no API keys, no SMTP, no external SaaS.**
 
-> Targets the **EmDash 0.19** plugin model. This is a full rewrite of the
-> 0.9-era plugin and is **not backward compatible** — see
-> [Migrating from 0.1.x](#migrating-from-01x).
+> Targets the **EmDash 0.19+** plugin model (verified through **0.27**). This
+> is a full rewrite of the 0.9-era plugin and is **not backward compatible** —
+> see [Migrating from 0.1.x](#migrating-from-01x).
 
 ## Requirements
 
-- An EmDash project on **0.19.0 or newer**.
+- An EmDash project on **0.19.0 or newer** (tested up to 0.27).
 - Hosting on **Cloudflare Workers** (not Pages, not Node).
 - Your sender domain must be onboarded to Cloudflare Email Sending:
   Dashboard → **Compute → Email Service → Email Sending → Onboard Domain**, or
@@ -92,13 +92,13 @@ provider under EmDash → **Settings → Email** (it claims the exclusive
 ### `cloudflareEmail()`
 
 Returns an EmDash `PluginDescriptor` (standard format). Takes no arguments —
-EmDash 0.19 standard-format plugins are configured at runtime via the admin
+EmDash standard-format plugins are configured at runtime via the admin
 settings page (stored in plugin KV), not via descriptor options.
 
 | Descriptor field | Value |
 | ---------------- | ----- |
 | `id`             | `cf-email-sending` |
-| `capabilities`   | `['email:provide']` — grants registration of the exclusive `email:deliver` hook |
+| `capabilities`   | `['hooks.email-transport:register']` — grants registration of the exclusive `email:deliver` hook |
 | `format`         | `standard` |
 
 ## How it works
