@@ -7,7 +7,7 @@ import { PluginContext } from "emdash/plugin";
  */
 type Locale = 'en' | 'ja';
 /**
- * Mirror of EmDash's internal `EmailMessage` shape. EmDash (through 0.27) does not
+ * Mirror of EmDash's internal `EmailMessage` shape. EmDash (through 1.4) does not
  * re-export it from the public entrypoint, so we restate the contract here.
  * Keep in sync with upstream if the message grows new fields.
  */

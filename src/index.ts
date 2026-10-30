@@ -5,7 +5,7 @@
  * (magic link / invite / password reset) through the native Cloudflare
  * Email Sending Workers binding — no API token, no SMTP, no external SaaS.
  *
- * Targets the EmDash 0.19+ plugin model (verified through 0.27):
+ * Targets the EmDash 0.19+ plugin model (verified on 0.27 and 1.4):
  *
  *   - `src/index.ts`        → this descriptor factory (`PluginDescriptor`)
  *   - `src/sandbox-entry.ts`→ `definePlugin({ hooks, routes })` (the runtime)
@@ -49,7 +49,7 @@ import type { PluginDescriptor } from 'emdash';
 export function cloudflareEmail(): PluginDescriptor {
   return {
     id: 'cf-email-sending',
-    version: '0.3.0',
+    version: '0.4.0',
     format: 'standard',
     entrypoint: 'emdash-cloudflare-email/sandbox',
     // Canonical capability name (recognized since EmDash 0.9; the legacy
