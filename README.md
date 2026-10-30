@@ -32,8 +32,10 @@ on your Cloudflare Worker — **no API keys, no SMTP, no external SaaS.**
 | `0.2.x` | `>=0.19.0`          | 0.19.x (uses the deprecated `email:provide` capability name) |
 | `0.1.x` | `>=0.9.0`           | 0.9.x (legacy plugin model) |
 
-The plugin API this package uses did not change between 0.27 and 1.x, so the
-same build serves both.
+The same build serves both 0.27 and 1.x. On EmDash 1.x, the `cc` and
+per-message `replyTo` fields that core passes to `email:deliver` are forwarded
+to the binding; a per-message Reply-To takes precedence over the Reply-To
+setting below.
 
 ## Installation
 
@@ -91,7 +93,8 @@ Deploy, then open the EmDash admin → **Cloudflare Email** settings page:
 - **From Address** — required. The sender mailbox, e.g. `noreply@yourdomain.com`.
   Its domain must be onboarded to Cloudflare Email Sending.
 - **Reply-To** — optional. Where replies go (e.g. `support@yourdomain.com`).
-  Applied to every delivered message when set.
+  Applied to every delivered message that does not carry its own Reply-To
+  (EmDash 1.x senders can set one per message).
 - **Binding Name** — optional; defaults to `EMAIL`. Set this only if your
   wrangler `send_email` binding uses a different name.
 

@@ -24,12 +24,15 @@ type Messages = Record<keyof typeof en, string>;
 const CATALOGS: Record<Locale, Messages> = { en, ja };
 
 /**
- * Mirror of EmDash's internal `EmailMessage` shape. EmDash (through 1.4) does not
- * re-export it from the public entrypoint, so we restate the contract here.
+ * Mirror of EmDash's `EmailMessage` shape, restated here so the same build
+ * typechecks against every supported EmDash version (0.x does not re-export
+ * it). `cc` and `replyTo` were added in EmDash 1.x and are absent on 0.x.
  * Keep in sync with upstream if the message grows new fields.
  */
 type EmailMessage = {
   to: string;
+  cc?: string[];
+  replyTo?: string;
   subject: string;
   text: string;
   html?: string;
@@ -85,6 +88,7 @@ type EmailAddressInput = FromAddress | string;
 type SendEmailBinding = {
   send(message: {
     to: string | string[];
+    cc?: string | string[];
     from: EmailAddressInput;
     replyTo?: EmailAddressInput;
     subject: string;
@@ -335,13 +339,15 @@ async function sendTestEmail(
 // ---------------------------------------------------------------------------
 
 const deliverHandler: EmailDeliverHandler = async (event, ctx) => {
-  const from = await resolveFrom(ctx);
-  const replyTo = await getReplyTo(ctx);
-
   const { message } = event;
+  const from = await resolveFrom(ctx);
+  // A per-message Reply-To (EmDash 1.x) wins over the site-wide setting.
+  const replyTo = message.replyTo || (await getReplyTo(ctx));
+
   const binding = getBinding(await getBindingName(ctx));
   await binding.send({
     to: message.to,
+    ...(message.cc?.length && { cc: message.cc }),
     from,
     ...(replyTo && { replyTo }),
     subject: message.subject,
