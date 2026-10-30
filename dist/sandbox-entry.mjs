@@ -299,11 +299,12 @@ async function sendTestEmail(ctx, values) {
 	}
 }
 const deliverHandler = async (event, ctx) => {
-	const from = await resolveFrom(ctx);
-	const replyTo = await getReplyTo(ctx);
 	const { message } = event;
+	const from = await resolveFrom(ctx);
+	const replyTo = message.replyTo || await getReplyTo(ctx);
 	await getBinding(await getBindingName(ctx)).send({
 		to: message.to,
+		...message.cc?.length && { cc: message.cc },
 		from,
 		...replyTo && { replyTo },
 		subject: message.subject,

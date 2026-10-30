@@ -7,12 +7,15 @@ import { PluginContext } from "emdash/plugin";
  */
 type Locale = 'en' | 'ja';
 /**
- * Mirror of EmDash's internal `EmailMessage` shape. EmDash (through 0.27) does not
- * re-export it from the public entrypoint, so we restate the contract here.
+ * Mirror of EmDash's `EmailMessage` shape, restated here so the same build
+ * typechecks against every supported EmDash version (0.x does not re-export
+ * it). `cc` and `replyTo` were added in EmDash 1.x and are absent on 0.x.
  * Keep in sync with upstream if the message grows new fields.
  */
 type EmailMessage = {
   to: string;
+  cc?: string[];
+  replyTo?: string;
   subject: string;
   text: string;
   html?: string;

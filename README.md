@@ -8,13 +8,13 @@ It registers the exclusive `email:deliver` transport on EmDash's email
 pipeline, so any time EmDash sends an email it goes through `env.EMAIL.send()`
 on your Cloudflare Worker — **no API keys, no SMTP, no external SaaS.**
 
-> Targets the **EmDash 0.19+** plugin model (verified through **0.27**). This
-> is a full rewrite of the 0.9-era plugin and is **not backward compatible** —
-> see [Migrating from 0.1.x](#migrating-from-01x).
+> Targets the **EmDash 0.19+** plugin model, including **EmDash 1.x** (verified
+> on **0.27** and **1.4**). This is a full rewrite of the 0.9-era plugin and is
+> **not backward compatible** — see [Migrating from 0.1.x](#migrating-from-01x).
 
 ## Requirements
 
-- An EmDash project on **0.19.0 or newer** (tested up to 0.27).
+- An EmDash project on **0.19.0 or newer**, up to 1.x (see [Compatibility](#compatibility)).
 - Hosting on **Cloudflare Workers** (not Pages, not Node).
 - Your sender domain must be onboarded to Cloudflare Email Sending:
   Dashboard → **Compute → Email Service → Email Sending → Onboard Domain**, or
@@ -22,6 +22,20 @@ on your Cloudflare Worker — **no API keys, no SMTP, no external SaaS.**
   SPF / DKIM / DMARC records.
 - Cloudflare Email Sending requires the Workers Paid plan to send to arbitrary
   recipients (the free tier is limited to verified destinations only).
+
+## Compatibility
+
+| Plugin  | EmDash (peer range) | Verified with |
+| ------- | ------------------- | ------------- |
+| `0.4.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build) |
+| `0.3.x` | `>=0.19.0`          | 0.27.0 |
+| `0.2.x` | `>=0.19.0`          | 0.19.x (uses the deprecated `email:provide` capability name) |
+| `0.1.x` | `>=0.9.0`           | 0.9.x (legacy plugin model) |
+
+The same build serves both 0.27 and 1.x. On EmDash 1.x, the `cc` and
+per-message `replyTo` fields that core passes to `email:deliver` are forwarded
+to the binding; a per-message Reply-To takes precedence over the Reply-To
+setting below.
 
 ## Installation
 
@@ -79,7 +93,8 @@ Deploy, then open the EmDash admin → **Cloudflare Email** settings page:
 - **From Address** — required. The sender mailbox, e.g. `noreply@yourdomain.com`.
   Its domain must be onboarded to Cloudflare Email Sending.
 - **Reply-To** — optional. Where replies go (e.g. `support@yourdomain.com`).
-  Applied to every delivered message when set.
+  Applied to every delivered message that does not carry its own Reply-To
+  (EmDash 1.x senders can set one per message).
 - **Binding Name** — optional; defaults to `EMAIL`. Set this only if your
   wrangler `send_email` binding uses a different name.
 
@@ -119,6 +134,19 @@ This plugin's `email:deliver` handler:
    EmDash assembled.
 4. Throws on a missing binding / missing config / send error so EmDash records
    the failure.
+
+## Upgrading your site to EmDash 1.x
+
+No plugin-related changes are needed:
+
+- Keep `plugins: [cloudflareEmail()]` in `astro.config.mjs` and the
+  `send_email` binding in `wrangler.jsonc` as they are. Any existing Vite
+  `optimizeDeps` / `ssr.noExternal` entries for this package can also stay.
+- Settings are stored under `settings:` KV keys, which EmDash 1.x's plugin KV
+  migration does not move. No reconfiguration is needed after upgrading.
+- Follow EmDash's [upgrade guide](https://docs.emdashcms.com/upgrade-to-v1/)
+  for the site itself. If your deployment runs `emdash migrate`, run it against
+  a build made after upgrading, before deploying that build.
 
 ## Migrating from 0.1.x
 
