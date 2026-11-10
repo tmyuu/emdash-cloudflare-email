@@ -7,7 +7,7 @@
 function cloudflareEmail() {
 	return {
 		id: "cf-email-sending",
-		version: "0.5.0",
+		version: "1.0.0",
 		format: "standard",
 		entrypoint: "@livspect/emdash-cloudflare-email/sandbox",
 		capabilities: ["hooks.email-transport:register"],
