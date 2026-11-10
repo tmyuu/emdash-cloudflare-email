@@ -7,9 +7,9 @@
 function cloudflareEmail() {
 	return {
 		id: "cf-email-sending",
-		version: "0.4.0",
+		version: "0.5.0",
 		format: "standard",
-		entrypoint: "emdash-cloudflare-email/sandbox",
+		entrypoint: "@livspect/emdash-cloudflare-email/sandbox",
 		capabilities: ["hooks.email-transport:register"],
 		adminPages: [{
 			path: "/settings",

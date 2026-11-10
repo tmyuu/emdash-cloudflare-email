@@ -1,4 +1,4 @@
-# emdash-cloudflare-email
+# @livspect/emdash-cloudflare-email
 
 EmDash CMS plugin that delivers system email (magic link / invite / password
 reset) through the native [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/)
@@ -27,7 +27,8 @@ on your Cloudflare Worker — **no API keys, no SMTP, no external SaaS.**
 
 | Plugin  | EmDash (peer range) | Verified with |
 | ------- | ------------------- | ------------- |
-| `0.4.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build) |
+| `0.5.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build); published on npm as `@livspect/emdash-cloudflare-email` |
+| `0.4.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build); GitHub install only |
 | `0.3.x` | `>=0.19.0`          | 0.27.0 |
 | `0.2.x` | `>=0.19.0`          | 0.19.x (uses the deprecated `email:provide` capability name) |
 | `0.1.x` | `>=0.9.0`           | 0.9.x (legacy plugin model) |
@@ -40,9 +41,24 @@ setting below.
 ## Installation
 
 ```sh
-pnpm add emdash-cloudflare-email
-# or: npm i emdash-cloudflare-email
+pnpm add @livspect/emdash-cloudflare-email
+# or: npm i @livspect/emdash-cloudflare-email
 ```
+
+### Migrating from a GitHub install (0.4.x and earlier)
+
+Up to 0.4.x the plugin was installed straight from GitHub under the unscoped
+name `emdash-cloudflare-email`. From 0.5.0 it is published on npm as `@livspect/emdash-cloudflare-email`, and
+the plugin locates its sandbox entry by that name, so update every reference:
+
+1. `package.json`: replace the `"emdash-cloudflare-email": "github:tmyuu/emdash-cloudflare-email#v…"`
+   dependency with `"@livspect/emdash-cloudflare-email": "^0.5.0"`. If the package is listed under
+   `pnpm.onlyBuiltDependencies`, remove it — the npm tarball ships a built `dist/`.
+2. `astro.config.mjs`: import from `@livspect/emdash-cloudflare-email`, and rename any Vite
+   `optimizeDeps.include` / `ssr.noExternal` entries to `@livspect/emdash-cloudflare-email` and
+   `@livspect/emdash-cloudflare-email/sandbox`.
+3. Reinstall and build. Settings and stored data carry over: they are keyed by
+   the plugin id (`cf-email-sending`), which has not changed.
 
 ## Setup
 
@@ -61,7 +77,7 @@ pnpm add emdash-cloudflare-email
 ```js
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
-import cloudflareEmail from 'emdash-cloudflare-email';
+import cloudflareEmail from '@livspect/emdash-cloudflare-email';
 
 export default defineConfig({
   integrations: [
@@ -169,6 +185,15 @@ The plugin was rewritten for EmDash 0.19. If you used `0.1.x`:
   isolate does not receive the host Worker's `send_email` binding.
 - If Email Sending isn't enabled on the zone, sends fail with
   `destination address is not a verified address`.
+
+## Releasing
+
+1. Bump `version` in `package.json` and in the descriptor in `src/index.ts`.
+2. Rebuild and commit `dist/` (`npm run build`); it stays committed so GitHub
+   installs keep working.
+3. Merge to `main`, then push a `vX.Y.Z` tag. The `Publish to npm` workflow
+   checks the tag against `package.json`, rebuilds, verifies `dist/` and
+   publishes with npm trusted publishing.
 
 ## License
 

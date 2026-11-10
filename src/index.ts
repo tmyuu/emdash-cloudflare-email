@@ -13,7 +13,7 @@
  * Register it in `astro.config.mjs`:
  *
  *   import emdash from 'emdash/astro';
- *   import cloudflareEmail from 'emdash-cloudflare-email';
+ *   import cloudflareEmail from '@livspect/emdash-cloudflare-email';
  *
  *   export default defineConfig({
  *     integrations: [
@@ -49,9 +49,9 @@ import type { PluginDescriptor } from 'emdash';
 export function cloudflareEmail(): PluginDescriptor {
   return {
     id: 'cf-email-sending',
-    version: '0.4.0',
+    version: '0.5.0',
     format: 'standard',
-    entrypoint: 'emdash-cloudflare-email/sandbox',
+    entrypoint: '@livspect/emdash-cloudflare-email/sandbox',
     // Canonical capability name (recognized since EmDash 0.9; the legacy
     // alias `email:provide` is deprecated and rejected at registry publish).
     capabilities: ['hooks.email-transport:register'],
