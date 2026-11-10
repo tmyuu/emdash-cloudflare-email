@@ -25,9 +25,12 @@ on your Cloudflare Worker — **no API keys, no SMTP, no external SaaS.**
 
 ## Compatibility
 
+From 1.0.0 the package follows semantic versioning: breaking changes only
+land in a new major version, so `^1.0.0` picks up every 1.x fix and feature.
+
 | Plugin  | EmDash (peer range) | Verified with |
 | ------- | ------------------- | ------------- |
-| `0.5.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build); published on npm as `@livspect/emdash-cloudflare-email` |
+| `1.0.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build); published on npm as `@livspect/emdash-cloudflare-email` |
 | `0.4.x` | `>=0.19.0 <2.0.0`   | 0.27.0, 1.4.0 (typecheck / build); GitHub install only |
 | `0.3.x` | `>=0.19.0`          | 0.27.0 |
 | `0.2.x` | `>=0.19.0`          | 0.19.x (uses the deprecated `email:provide` capability name) |
@@ -48,11 +51,11 @@ pnpm add @livspect/emdash-cloudflare-email
 ### Migrating from a GitHub install (0.4.x and earlier)
 
 Up to 0.4.x the plugin was installed straight from GitHub under the unscoped
-name `emdash-cloudflare-email`. From 0.5.0 it is published on npm as `@livspect/emdash-cloudflare-email`, and
+name `emdash-cloudflare-email`. From 1.0.0 it is published on npm as `@livspect/emdash-cloudflare-email`, and
 the plugin locates its sandbox entry by that name, so update every reference:
 
 1. `package.json`: replace the `"emdash-cloudflare-email": "github:tmyuu/emdash-cloudflare-email#v…"`
-   dependency with `"@livspect/emdash-cloudflare-email": "^0.5.0"`. If the package is listed under
+   dependency with `"@livspect/emdash-cloudflare-email": "^1.0.0"`. If the package is listed under
    `pnpm.onlyBuiltDependencies`, remove it — the npm tarball ships a built `dist/`.
 2. `astro.config.mjs`: import from `@livspect/emdash-cloudflare-email`, and rename any Vite
    `optimizeDeps.include` / `ssr.noExternal` entries to `@livspect/emdash-cloudflare-email` and

@@ -49,7 +49,7 @@ import type { PluginDescriptor } from 'emdash';
 export function cloudflareEmail(): PluginDescriptor {
   return {
     id: 'cf-email-sending',
-    version: '0.5.0',
+    version: '1.0.0',
     format: 'standard',
     entrypoint: '@livspect/emdash-cloudflare-email/sandbox',
     // Canonical capability name (recognized since EmDash 0.9; the legacy
