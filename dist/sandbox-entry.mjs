@@ -80,6 +80,18 @@ function parseFrom(input) {
 		name
 	} : { email };
 }
+/**
+* Shape an address for the binding. Cloudflare requires `name` to be a
+* string whenever an object is passed, so a nameless address must go as a
+* plain string — `{ email }` alone is rejected at send time.
+* (exported for tests)
+*/
+function toSendAddress(email, name) {
+	return name ? {
+		email,
+		name
+	} : email;
+}
 function getBinding(name) {
 	const binding = env[name];
 	if (!binding || typeof binding.send !== "function") throw new Error(`Cloudflare Email Sending binding "${name}" not found on env. Add it to your wrangler config: { "send_email": [{ "name": "${name}" }] }, then redeploy. The plugin must run via emdash \`plugins:\` (in-process), not \`sandboxed:\`, so the binding is in scope.`);
@@ -94,16 +106,14 @@ async function getBindingName(ctx) {
 * From email with the optional display name. Throws if the From address is
 * missing or invalid (so callers surface a clear setup error).
 */
+/** Resolve the sender from settings. (exported for tests) */
 async function resolveFrom(ctx) {
 	const fromRaw = await ctx.kv.get(KV_FROM);
 	if (!fromRaw) throw new Error("Cloudflare Email plugin not configured. Set the From address in plugin settings.");
 	const parsed = parseFrom(fromRaw);
 	if (!parsed) throw new Error("Invalid From address in plugin settings");
 	const displayName = (await ctx.kv.get(KV_DISPLAY_NAME))?.trim() || parsed.name || ctx.site?.name?.trim();
-	return displayName ? {
-		email: parsed.email,
-		name: displayName
-	} : { email: parsed.email };
+	return toSendAddress(parsed.email, displayName);
 }
 /** Optional Reply-To address, validated. Returns undefined when unset. */
 async function getReplyTo(ctx) {
@@ -336,4 +346,4 @@ var sandbox_entry_default = {
 	routes: { admin: { handler: adminHandler } }
 };
 //#endregion
-export { sandbox_entry_default as default };
+export { sandbox_entry_default as default, resolveFrom, toSendAddress };

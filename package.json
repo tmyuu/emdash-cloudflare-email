@@ -1,6 +1,6 @@
 {
   "name": "@livspect/emdash-cloudflare-email",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "EmDash CMS plugin: deliver system email (magic link / invite / password reset) via the native Cloudflare Email Sending Workers binding. No API token required.",
   "type": "module",
   "main": "dist/index.mjs",
@@ -25,7 +25,8 @@
     "dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "prepare": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
   },
   "keywords": [
     "emdash",
@@ -54,7 +55,8 @@
     "@cloudflare/workers-types": "^4.20260424.1",
     "emdash": "^1.4.0",
     "tsdown": "^0.21.7",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   },
   "publishConfig": {
     "access": "public"

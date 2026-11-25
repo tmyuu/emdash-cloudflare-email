@@ -7,6 +7,7 @@ EmDash CMS プラグイン: システムメール（マジックリンク / 招�
 ```sh
 pnpm build       # tsdown で dist/ を生成
 pnpm typecheck   # tsc --noEmit で型チェック
+pnpm test        # vitest（cloudflare:workers はスタブに差し替え）
 ```
 
 ## アーキテクチャ
