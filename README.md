@@ -194,6 +194,9 @@ The plugin was rewritten for EmDash 0.19. If you used `0.1.x`:
 1. Bump `version` in `package.json` and in the descriptor in `src/index.ts`.
 2. Rebuild and commit `dist/` (`npm run build`); it stays committed so GitHub
    installs keep working.
+   If dependencies changed, regenerate `package-lock.json` with the npm version
+   pinned in the workflow, from a clean directory:
+   `npx npm@11.19.1 install --package-lock-only` (copy only `package.json` there).
 3. Merge to `main`, then push a `vX.Y.Z` tag. The `Publish to npm` workflow
    checks the tag against `package.json`, rebuilds, verifies `dist/` and
    publishes with npm trusted publishing.
