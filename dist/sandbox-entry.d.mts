@@ -25,6 +25,24 @@ type EmailDeliverEvent = {
   source: string;
 };
 type EmailDeliverHandler = (event: EmailDeliverEvent, ctx: PluginContext) => Promise<void>;
+type SendAddress = {
+  email: string;
+  name: string;
+} | string;
+/**
+ * Shape an address for the binding. Cloudflare requires `name` to be a
+ * string whenever an object is passed, so a nameless address must go as a
+ * plain string — `{ email }` alone is rejected at send time.
+ * (exported for tests)
+ */
+declare function toSendAddress(email: string, name: string | undefined): SendAddress;
+/**
+ * Resolve the configured sender into a Cloudflare `from` value. Combines the
+ * From email with the optional display name. Throws if the From address is
+ * missing or invalid (so callers surface a clear setup error).
+ */
+/** Resolve the sender from settings. (exported for tests) */
+declare function resolveFrom(ctx: PluginContext): Promise<SendAddress>;
 /**
  * Standard/sandbox-format entrypoint: a bare `{ hooks, routes }` object
  * annotated with `satisfies SandboxedPlugin` — EmDash standard plugins
@@ -94,4 +112,4 @@ declare const _default: {
   };
 };
 //#endregion
-export { _default as default };
+export { _default as default, resolveFrom, toSendAddress };

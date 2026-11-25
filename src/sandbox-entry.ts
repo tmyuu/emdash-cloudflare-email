@@ -78,19 +78,29 @@ function parseFrom(input: string): FromAddress | null {
   return name ? { email, name } : { email };
 }
 
+type SendAddress = { email: string; name: string } | string;
+
+/**
+ * Shape an address for the binding. Cloudflare requires `name` to be a
+ * string whenever an object is passed, so a nameless address must go as a
+ * plain string — `{ email }` alone is rejected at send time.
+ * (exported for tests)
+ */
+export function toSendAddress(email: string, name: string | undefined): SendAddress {
+  return name ? { email, name } : email;
+}
+
 /**
  * Minimal structural type for Cloudflare's `send_email` binding. Typed here
  * so the plugin does not depend on the host Worker's generated `Env`.
  * https://developers.cloudflare.com/email-service/email-sending/
  */
-type EmailAddressInput = FromAddress | string;
-
 type SendEmailBinding = {
   send(message: {
     to: string | string[];
     cc?: string | string[];
-    from: EmailAddressInput;
-    replyTo?: EmailAddressInput;
+    from: SendAddress;
+    replyTo?: SendAddress;
     subject: string;
     html?: string;
     text?: string;
@@ -121,7 +131,8 @@ async function getBindingName(ctx: PluginContext): Promise<string> {
  * From email with the optional display name. Throws if the From address is
  * missing or invalid (so callers surface a clear setup error).
  */
-async function resolveFrom(ctx: PluginContext): Promise<FromAddress> {
+/** Resolve the sender from settings. (exported for tests) */
+export async function resolveFrom(ctx: PluginContext): Promise<SendAddress> {
   const fromRaw = await ctx.kv.get<string>(KV_FROM);
   if (!fromRaw) {
     throw new Error(
@@ -134,7 +145,7 @@ async function resolveFrom(ctx: PluginContext): Promise<FromAddress> {
   // Display-name precedence: explicit setting → name embedded in the From
   // value → EmDash's site name (`ctx.site.name`) as a sensible default.
   const displayName = explicit || parsed.name || ctx.site?.name?.trim();
-  return displayName ? { email: parsed.email, name: displayName } : { email: parsed.email };
+  return toSendAddress(parsed.email, displayName);
 }
 
 /** Optional Reply-To address, validated. Returns undefined when unset. */
